@@ -1,0 +1,378 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>AERO-NEXUS | Voice-Enabled Airport DBMS Portal</title>
+  <link rel="stylesheet" href="styles.css">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@500;700&display=swap" rel="stylesheet">
+</head>
+<body>
+
+  <!-- Top Header Navigation -->
+  <header>
+    <div class="brand">
+      <div class="brand-logo">✈️</div>
+      <div class="brand-text">
+        <h1>AERO-NEXUS OPERATIONS</h1>
+        <p>Voice-Enabled Relational DBMS Hub</p>
+      </div>
+    </div>
+
+    <nav class="nav-links">
+      <button class="nav-btn active" id="nav_view_voice" onclick="showView('view_voice')">🎙️ Voice Assistant</button>
+      <button class="nav-btn" id="nav_view_fids" onclick="showView('view_fids')">🛫 Live FIDS Board</button>
+      <button class="nav-btn" id="nav_view_syllabus" onclick="showView('view_syllabus')">📚 DBMS Syllabus Lab</button>
+      <button class="nav-btn" id="nav_view_tables" onclick="showView('view_tables')">🗄️ Tables Explorer</button>
+      <button class="nav-btn" id="nav_view_sql" onclick="showView('view_sql')">💻 SQL Terminal</button>
+    </nav>
+
+    <div class="header-status">
+      <span class="status-pill"><span class="status-dot"></span> AIRPORT DB ONLINE</span>
+      <span id="utcClock" style="color: var(--text-muted); font-size: 0.78rem;">00:00:00 UTC</span>
+    </div>
+  </header>
+
+  <!-- Main Container -->
+  <main>
+
+    <!-- Operational KPI Metrics Banner -->
+    <div class="kpi-grid">
+      <div class="kpi-card">
+        <span class="kpi-title">Active Flights</span>
+        <span class="kpi-value">23</span>
+        <span class="kpi-sub">↑ 100% On-Time Dispatch</span>
+      </div>
+      <div class="kpi-card">
+        <span class="kpi-title">Connected Hubs</span>
+        <span class="kpi-value">24</span>
+        <span class="kpi-sub">BOM • DEL • BLR • HYD</span>
+      </div>
+      <div class="kpi-card">
+        <span class="kpi-title">Commercial Fleet</span>
+        <span class="kpi-value">22</span>
+        <span class="kpi-sub">Airbus A320 • Boeing 777</span>
+      </div>
+      <div class="kpi-card">
+        <span class="kpi-title">Checked Baggage</span>
+        <span class="kpi-value">40</span>
+        <span class="kpi-sub">100% Barcode Loaded</span>
+      </div>
+      <div class="kpi-card">
+        <span class="kpi-title">Transactions (ACID)</span>
+        <span class="kpi-value">40</span>
+        <span class="kpi-sub">Verified Strict 2PL</span>
+      </div>
+    </div>
+
+
+    <!-- ========================================================================= -->
+    <!-- VIEW 1: VOICE ASSISTANT & RADAR CENTER -->
+    <!-- ========================================================================= -->
+    <section id="view_voice" class="view-section active">
+      <div class="voice-hero">
+        <div class="voice-interface">
+          <h2>🎙️ Voice-Enabled <span>Airport Operations</span> Hub</h2>
+          <p>Click the microphone or type below. The system translates speech into 3NF SQL queries and speaks back real-time results.</p>
+          
+          <div class="mic-bar">
+            <button class="btn-mic" id="btnMic" onclick="toggleMic()" title="Click to speak">🎤</button>
+            <input type="text" class="voice-input-text" id="voiceInput" placeholder="Click mic to speak, or type: 'Flights from Mumbai', 'Show baggage status'..." onkeydown="if(event.key==='Enter') handleVoiceQuery()">
+            <button class="btn-ask" onclick="handleVoiceQuery()">Execute ➔</button>
+          </div>
+
+          <div class="chips-row">
+            <span class="chip" onclick="handleVoiceQuery('Flights from Mumbai')">🛫 Flights from Mumbai</span>
+            <span class="chip" onclick="handleVoiceQuery('Flights to Delhi')">🛬 Flights to Delhi</span>
+            <span class="chip" onclick="handleVoiceQuery('Show baggage status')">🧳 Baggage Tracking</span>
+            <span class="chip" onclick="handleVoiceQuery('Show total revenue')">💰 Route Revenue</span>
+            <span class="chip" onclick="handleVoiceQuery('Show available aircraft')">✈️ Available Aircraft</span>
+            <span class="chip" onclick="handleVoiceQuery('Show audit history')">📜 Audit Trail</span>
+          </div>
+
+          <!-- Spoken Audio Feedback Card -->
+          <div class="voice-output-card" id="voiceOutputCard">
+            <div class="voice-output-header">
+              <span class="voice-tag">🔊 Spoken Voice Audio Response</span>
+              <button class="btn-tts-replay" onclick="replaySpeech()">🔊 Replay Speech</button>
+            </div>
+            <div class="voice-text" id="voiceSpokenText">Voice answer ready.</div>
+          </div>
+        </div>
+
+        <!-- Radar Widget -->
+        <div class="radar-box">
+          <div class="radar-title">AIRSPACE RADAR MONITOR</div>
+          <canvas id="radarCanvas" width="280" height="220"></canvas>
+          <div style="font-size: 0.7rem; color: #94a3b8; margin-top: 6px; font-family: var(--font-mono);">Live Vector Scan: Active Flights In-Route</div>
+        </div>
+      </div>
+
+      <!-- Dynamic Voice Results Table -->
+      <div id="voiceResultsContainer"></div>
+    </section>
+
+
+    <!-- ========================================================================= -->
+    <!-- VIEW 2: LIVE FIDS BOARD -->
+    <!-- ========================================================================= -->
+    <section id="view_fids" class="view-section">
+      <div class="panel">
+        <div class="panel-header">
+          <div class="panel-title">🛫 Live Flight Information Display System (FIDS)</div>
+          <div class="panel-actions">
+            <span class="badge badge-green">Scheduled Departures</span>
+          </div>
+        </div>
+        <div class="table-responsive">
+          <table class="data-table">
+            <thead>
+              <tr>
+                <th>Flight</th>
+                <th>Origin</th>
+                <th>Destination</th>
+                <th>Scheduled Departure</th>
+                <th>Estimated Arrival</th>
+                <th>Status</th>
+                <th>Aircraft</th>
+                <th>Fare (INR)</th>
+              </tr>
+            </thead>
+            <tbody id="fidsTableBody"></tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+
+    <!-- ========================================================================= -->
+    <!-- VIEW 3: DBMS SYLLABUS LAB (UNITS 1 TO 6) -->
+    <!-- ========================================================================= -->
+    <section id="view_syllabus" class="view-section">
+      <div class="panel">
+        <div class="panel-header">
+          <div class="panel-title">📚 DBMS Comprehensive Syllabus Interactive Laboratory</div>
+          <span class="badge badge-blue">VIT Pune • CS2227 / ML2302 Alignment</span>
+        </div>
+        <p style="color: var(--text-muted); font-size: 0.9rem; margin-bottom: 20px;">
+          This system covers all 6 units of the Database Management Systems course syllabus. Explore the interactive modules below:
+        </p>
+
+        <div class="syllabus-grid">
+          
+          <!-- Unit 1 -->
+          <div class="syllabus-card">
+            <div class="syllabus-card-header">
+              <span class="unit-tag">UNIT 1</span>
+              <span class="badge badge-green">CO1: Modeling</span>
+            </div>
+            <h3>Data Modeling & Relational Integrity</h3>
+            <p>3-Tier ANSI/SPARC architecture, ER modeling with Weak Entities, and Codd's 12 Rules.</p>
+            <ul class="syllabus-items">
+              <li><strong>Entities:</strong> Airport, Aircraft, Flight, Passenger, Booking, Payment, Baggage</li>
+              <li><strong>Integrity:</strong> Entity PK, Referential FK CASCADE, CHECK (capacity > 0)</li>
+              <li><strong>Codd's Rules:</strong> 100% compliant with Foundation & Information rules</li>
+            </ul>
+          </div>
+
+          <!-- Unit 2 & 3 -->
+          <div class="syllabus-card">
+            <div class="syllabus-card-header">
+              <span class="unit-tag">UNITS 2 & 3</span>
+              <span class="badge badge-blue">CO3: Relational SQL</span>
+            </div>
+            <h3>Relational Algebra & Advanced SQL</h3>
+            <p>Formal algebraic mappings (σ, π, ⨝, ρ, ∪, −) paired with equi/outer joins and correlated subqueries.</p>
+            <ul class="syllabus-items">
+              <li><strong>Complex Joins:</strong> Self joins for multi-leg layovers, Left outer joins for idle fleet</li>
+              <li><strong>Views:</strong> v_flight_schedule, v_passenger_manifest, v_revenue_summary</li>
+              <li><strong>Aggregates:</strong> GROUP BY with HAVING filters for high-revenue routes</li>
+            </ul>
+          </div>
+
+          <!-- Unit 4 -->
+          <div class="syllabus-card">
+            <div class="syllabus-card-header">
+              <span class="unit-tag">UNIT 4</span>
+              <span class="badge badge-yellow">CO2 & CO4: Design</span>
+            </div>
+            <h3>Normalization, Parquet & Recovery</h3>
+            <p>1NF to BCNF decomposition proofs, columnar Parquet scan savings, and ARIES crash recovery.</p>
+            <ul class="syllabus-items">
+              <li><strong>Normal Forms:</strong> Lossless join & dependency preservation proven for 3NF/BCNF</li>
+              <li><strong>Parquet vs Row:</strong> 10x I/O reduction via column-chunk & dictionary encoding</li>
+              <li><strong>Recovery:</strong> Write-Ahead Logging (WAL) and checkpoint undo/redo protocol</li>
+            </ul>
+          </div>
+
+          <!-- Unit 5 -->
+          <div class="syllabus-card">
+            <div class="syllabus-card-header">
+              <span class="unit-tag">UNIT 5</span>
+              <span class="badge badge-green">CO4 & CO5: Concurrency</span>
+            </div>
+            <h3>Transactions, ACID & Concurrency</h3>
+            <p>Strict 2-Phase Locking (2PL), Precedence Graph Conflict Serializability, and distributed sharding.</p>
+            <ul class="syllabus-items">
+              <li><strong>ACID Simulation:</strong> sp_book_flight with SAVEPOINT, seat lock, and ROLLBACK</li>
+              <li><strong>Conflict Serializability:</strong> Serialization graph cycle-detection engine</li>
+              <li><strong>Distributed DBMS:</strong> Range/hash partitioning across BOM, DEL, and BLR hubs</li>
+            </ul>
+          </div>
+
+          <!-- Unit 6: NoSQL -->
+          <div class="syllabus-card">
+            <div class="syllabus-card-header">
+              <span class="unit-tag">UNIT 6</span>
+              <span class="badge badge-blue">CO6: Big Data</span>
+            </div>
+            <h3>NoSQL, HDFS & Data Warehousing</h3>
+            <p>Multi-model NoSQL storage (MongoDB, Redis, Cassandra, Neo4j) and OLAP Star Schema.</p>
+            <ul class="syllabus-items">
+              <li><strong>NoSQL Stores:</strong> JSON manifest documents, Redis radar cache, Neo4j flight graphs</li>
+              <li><strong>CAP & BASE:</strong> Eventual consistency trade-off vs relational ACID</li>
+              <li><strong>OLAP Star Schema:</strong> Fact_Flight_Operations surrounded by Time, Airport & Aircraft</li>
+            </ul>
+          </div>
+
+          <!-- Viva & Defense -->
+          <div class="syllabus-card" style="border-color: var(--accent-amber);">
+            <div class="syllabus-card-header">
+              <span class="unit-tag" style="background: rgba(245, 158, 11, 0.2); color: var(--accent-amber);">EVALUATION</span>
+              <span class="badge badge-yellow">Viva Preparation</span>
+            </div>
+            <h3>Academic Defense & Evaluation</h3>
+            <p>Ready for external DBMS oral evaluation, laboratory presentation, and viva voce questioning.</p>
+            <ul class="syllabus-items">
+              <li><strong>Auditing:</strong> Automatic trigger logging into flight_audit table</li>
+              <li><strong>Dual-Backend:</strong> Seamless auto-detection between MySQL and SQLite</li>
+              <li><strong>Voice Pipeline:</strong> Zero-latency Web Speech API + conversational response</li>
+            </ul>
+          </div>
+
+        </div>
+      </div>
+    </section>
+
+
+    <!-- ========================================================================= -->
+    <!-- VIEW 4: DATABASE TABLES EXPLORER -->
+    <!-- ========================================================================= -->
+    <section id="view_tables" class="view-section">
+      <div class="panel">
+        <div class="panel-header">
+          <div class="panel-title">🗄️ Relational Database Schema & Tables Explorer</div>
+        </div>
+        <p style="color: var(--text-muted); font-size: 0.9rem; margin-bottom: 16px;">
+          All 7 core normalized operational tables are modeled in 3NF / BCNF.
+        </p>
+        
+        <div class="table-responsive">
+          <table class="data-table">
+            <thead>
+              <tr>
+                <th>Table Name</th>
+                <th>Primary Key</th>
+                <th>Foreign Keys</th>
+                <th>Check & Unique Constraints</th>
+                <th>Total Rows</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td><strong>airport</strong></td>
+                <td><code>airport_id</code></td>
+                <td>None</td>
+                <td><code>airport_code UNIQUE</code></td>
+                <td>24 rows</td>
+              </tr>
+              <tr>
+                <td><strong>aircraft</strong></td>
+                <td><code>aircraft_id</code></td>
+                <td>None</td>
+                <td><code>CHECK (capacity > 0)</code></td>
+                <td>22 rows</td>
+              </tr>
+              <tr>
+                <td><strong>flight</strong></td>
+                <td><code>flight_id</code></td>
+                <td>source_airport, destination_airport, aircraft_id</td>
+                <td><code>flight_no UNIQUE, CHECK (fare >= 0)</code></td>
+                <td>23 rows</td>
+              </tr>
+              <tr>
+                <td><strong>passenger</strong></td>
+                <td><code>passenger_id</code></td>
+                <td>flight_id</td>
+                <td><code>CHECK (age >= 0)</code></td>
+                <td>43 rows</td>
+              </tr>
+              <tr>
+                <td><strong>booking</strong></td>
+                <td><code>booking_id</code></td>
+                <td>passenger_id, flight_id</td>
+                <td><code>DEFAULT 'Confirmed'</code></td>
+                <td>40 rows</td>
+              </tr>
+              <tr>
+                <td><strong>payment</strong></td>
+                <td><code>payment_id</code></td>
+                <td>booking_id</td>
+                <td><code>CHECK (amount >= 0)</code></td>
+                <td>30 rows</td>
+              </tr>
+              <tr>
+                <td><strong>baggage</strong></td>
+                <td><code>baggage_id</code></td>
+                <td>booking_id</td>
+                <td><code>DEFAULT 'Checked-in'</code></td>
+                <td>40 rows</td>
+              </tr>
+              <tr>
+                <td><strong>flight_audit</strong></td>
+                <td><code>audit_id</code></td>
+                <td>flight_id</td>
+                <td><code>AUTOINCREMENT, TIMESTAMP</code></td>
+                <td>Trigger Populated</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+
+    <!-- ========================================================================= -->
+    <!-- VIEW 5: SQL TERMINAL -->
+    <!-- ========================================================================= -->
+    <section id="view_sql" class="view-section">
+      <div class="panel">
+        <div class="panel-header">
+          <div class="panel-title">💻 Interactive Relational SQL Terminal</div>
+          <button class="btn-ask" onclick="runCustomSql()">⚡ Run Query</button>
+        </div>
+        <textarea class="sql-editor" id="customSqlText">SELECT f.flight_no, a1.city AS origin, a2.city AS destination, f.fare, ac.model
+FROM flight f
+JOIN airport a1 ON f.source_airport = a1.airport_id
+JOIN airport a2 ON f.destination_airport = a2.airport_id
+JOIN aircraft ac ON f.aircraft_id = ac.aircraft_id
+WHERE f.fare > 5500
+ORDER BY f.fare DESC;</textarea>
+        
+        <div id="sqlOutputContainer"></div>
+      </div>
+    </section>
+
+  </main>
+
+  <!-- Footer -->
+  <footer>
+    <p>Voice-Enabled Intelligent Airport Operations & DBMS Project • Second Year B.Tech • VIT Pune</p>
+    <p style="margin-top: 4px; font-size: 0.76rem;">Designed with Relational Integrity, 3NF/BCNF Decomposition, Strict 2PL ACID Transactions & Web Speech API.</p>
+  </footer>
+
+  <script src="app.js"></script>
+</body>
+</html>

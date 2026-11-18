@@ -1,6 +1,7 @@
 import os
 import io
 import time
+import json
 import streamlit as st
 import pandas as pd
 import streamlit.components.v1 as components
@@ -8,12 +9,13 @@ from streamlit_mic_recorder import speech_to_text
 
 import db_manager
 import voice_query_engine
+import syllabus_engine
 
 # ==============================================================================
 # 1. PAGE CONFIGURATION & THEME
 # ==============================================================================
 st.set_page_config(
-    page_title="Voice-Enabled Airport Operations & Passenger Management",
+    page_title="Voice-Enabled Airport Operations & DBMS Lab",
     page_icon="✈️",
     layout="wide",
     initial_sidebar_state="expanded"
@@ -105,18 +107,6 @@ st.markdown("""
         line-height: 1.45;
     }
 
-    /* Live FIDS Board */
-    .fids-header {
-        background: #0B132B;
-        color: #F59E0B;
-        font-family: monospace;
-        padding: 10px 14px;
-        border-radius: 8px 8px 0 0;
-        border: 1px solid #334155;
-        font-size: 0.85rem;
-        font-weight: 700;
-    }
-
     /* Badges */
     .badge-on-time {
         background: rgba(16, 185, 129, 0.2);
@@ -149,7 +139,6 @@ def render_voice_output(text: str, auto_play: bool = True, speech_rate: float = 
     1. Browser-native Web Speech API (speechSynthesis) - works 100% offline with zero latency
     2. Embedded gTTS audio player (if network is available)
     """
-    # Sanitize text for JavaScript
     clean_text = text.replace('"', '\\"').replace("'", "\\'").replace("\n", " ").replace("\r", " ")
     
     js_code = f"""
@@ -184,29 +173,20 @@ def render_voice_output(text: str, auto_play: bool = True, speech_rate: float = 
                 msg.lang = 'en-US';
                 
                 var statusSpan = document.getElementById('tts-status');
-                msg.onstart = function() {{
-                    if (statusSpan) statusSpan.innerText = "🎙️ Speaking...";
-                }};
+                if (statusSpan) statusSpan.innerText = "🎙️ Speaking...";
                 msg.onend = function() {{
                     if (statusSpan) statusSpan.innerText = "✓ Finished speaking";
                 }};
-                msg.onerror = function() {{
-                    if (statusSpan) statusSpan.innerText = "Voice playback ready";
-                }};
                 
                 window.speechSynthesis.speak(msg);
-            }} else {{
-                alert("Speech synthesis is not supported in this browser.");
             }}
         }}
-
-        // Auto-play if enabled
         {'speakNow();' if auto_play else ''}
     </script>
     """
     components.html(js_code, height=52)
 
-    # Optional server-side gTTS audio player
+    # Optional server-side gTTS audio player fallback
     try:
         from gtts import gTTS
         fp = io.BytesIO()
@@ -215,7 +195,6 @@ def render_voice_output(text: str, auto_play: bool = True, speech_rate: float = 
         fp.seek(0)
         st.audio(fp.read(), format="audio/mp3", start_time=0)
     except Exception:
-        # Offline or gTTS connection blocked - Web Speech API will handle the speech seamlessly
         pass
 
 
@@ -253,54 +232,60 @@ with st.sidebar:
                 "password": password,
                 "database": database
             }
-            if st.button("🔄 Test & Reconnect"):
-                st.rerun()
 
     # Voice Output Settings
-    st.divider()
-    st.markdown("#### 🎙️ Voice Output Settings")
-    auto_speak = st.checkbox("Auto-play spoken answers", value=True)
-    voice_speed = st.slider("Speech Rate / Speed", min_value=0.8, max_value=1.4, value=1.0, step=0.1)
-
-    # Establish connection
-    conn, is_mysql, conn_msg = db_manager.get_db_connection(mysql_cfg, force_sqlite=force_sqlite)
-    
-    st.divider()
-    if is_mysql:
-        st.success("🟢 **MySQL Active** (Live Server)")
-        st.caption(f"Host: `{mysql_cfg.get('host', 'localhost')}` | DB: `{mysql_cfg.get('database', 'AirportDB')}`")
-    else:
-        st.info("🟡 **AirportDB Standalone Mode**")
-        st.caption("Loaded from `AirportDB.sql` into local database.")
-    
-    # Quick Table Counts
-    st.divider()
-    st.markdown("#### 📊 Core Entities Overview")
-    tables_list = ["airport", "aircraft", "flight", "passenger", "booking", "payment"]
-    cols_s = st.columns(2)
-    for i, tbl in enumerate(tables_list):
-        cnt = db_manager.get_table_row_count(conn, tbl, is_mysql)
-        col = cols_s[i % 2]
-        col.metric(tbl.title(), cnt)
+    st.markdown("#### 🔊 Audio Output Settings")
+    auto_speak = st.checkbox("Auto-play voice speech response", value=True)
+    voice_speed = st.slider("Speech Speed Rate", min_value=0.7, max_value=1.4, value=1.0, step=0.1)
 
     st.divider()
-    st.markdown(
-        "<div style='font-size: 0.75rem; color: #64748B;'>"
-        "Voice-Enabled Airport Operations & Passenger Management System<br>"
-        "Relational DBMS Project • Built with Streamlit"
-        "</div>",
-        unsafe_allow_html=True
-    )
+
+    # Web Portal Link
+    st.markdown("#### 🌐 Advanced Web Portal")
+    st.info("A standalone modern web portal is included in `web_portal/index.html`. Open it directly or launch via `python web_portal/api_server.py`.")
+
+
+# Establish Database Connection
+conn, is_mysql, conn_status = db_manager.get_db_connection(mysql_config=mysql_cfg, force_sqlite=force_sqlite)
 
 
 # ==============================================================================
-# 4. MAIN WORKSPACE & HEADER
+# 4. TOP METRICS DASHBOARD
 # ==============================================================================
+col_m1, col_m2, col_m3, col_m4, col_m5 = st.columns(5)
+
+cnt_flights = db_manager.get_table_row_count(conn, "flight", is_mysql)
+cnt_passengers = db_manager.get_table_row_count(conn, "passenger", is_mysql)
+cnt_airports = db_manager.get_table_row_count(conn, "airport", is_mysql)
+cnt_aircraft = db_manager.get_table_row_count(conn, "aircraft", is_mysql)
+cnt_bookings = db_manager.get_table_row_count(conn, "booking", is_mysql)
+
+with col_m1:
+    st.markdown(f"""<div class="metric-card"><div class="metric-value">{cnt_flights}</div><div class="metric-label">Scheduled Flights</div></div>""", unsafe_allow_html=True)
+with col_m2:
+    st.markdown(f"""<div class="metric-card"><div class="metric-value">{cnt_passengers}</div><div class="metric-label">Passengers</div></div>""", unsafe_allow_html=True)
+with col_m3:
+    st.markdown(f"""<div class="metric-card"><div class="metric-value">{cnt_airports}</div><div class="metric-label">Airport Hubs</div></div>""", unsafe_allow_html=True)
+with col_m4:
+    st.markdown(f"""<div class="metric-card"><div class="metric-value">{cnt_aircraft}</div><div class="metric-label">Fleet Size</div></div>""", unsafe_allow_html=True)
+with col_m5:
+    st.markdown(f"""<div class="metric-card"><div class="metric-value">{cnt_bookings}</div><div class="metric-label">Bookings</div></div>""", unsafe_allow_html=True)
+
+st.markdown("<div style='margin-bottom: 14px;'></div>", unsafe_allow_html=True)
+
+# Connection Status Alert
+if is_mysql:
+    st.success(f"🟢 {conn_status}")
+else:
+    st.info(f"🔵 {conn_status} (Zero-setup local standalone mode)")
+
+
+# Top Hero Banner
 st.markdown("""
 <div class="hero-banner">
-    <div class="hero-title">🎙️ Voice-Enabled <span>Airport Operations</span> & Passenger Assistant</div>
+    <div class="hero-title">🎙️ Voice-Enabled <span>Airport Operations</span> & DBMS System</div>
     <div class="hero-subtitle">
-        Speak questions to query flights, passenger manifests, aircraft fleet, seat bookings, and revenue records in real-time.
+        Speak queries into your microphone to inspect flights, passenger manifests, baggage, revenue, transactions (ACID), and all 6 units of the DBMS course syllabus.
     </div>
 </div>
 """, unsafe_allow_html=True)
@@ -316,10 +301,12 @@ if "trigger_query" not in st.session_state:
 
 
 # Navigation Tabs
-tab_voice, tab_fids, tab_tables, tab_sql = st.tabs([
+tab_voice, tab_fids, tab_tables, tab_proc, tab_syllabus, tab_sql = st.tabs([
     "🎙️ Voice Assistant & Queries",
     "🛫 Live Flight Board (FIDS)",
     "🗄️ Database Tables Explorer",
+    "⚡ Stored Procedures & Triggers",
+    "📚 DBMS Syllabus Lab (Units 1-6)",
     "💻 Custom SQL Terminal"
 ])
 
@@ -348,7 +335,7 @@ with tab_voice:
         st.markdown("**⌨️ Text Input (Alternative):**")
         typed_text = st.text_input(
             label="Type your question here",
-            placeholder="e.g. 'Show all flights from Mumbai', 'Passengers on flight 301'...",
+            placeholder="e.g. 'Show all flights from Mumbai', 'Show baggage status', 'Passengers on AI101'...",
             label_visibility="collapsed",
             key="text_query_input"
         )
@@ -360,10 +347,10 @@ with tab_voice:
     prompts = [
         ("🛫 Flights from Mumbai", "Show flights from Mumbai"),
         ("🛬 Flights to Delhi", "Flights to Delhi"),
-        ("📋 Manifest (Flight 301)", "Passengers on flight 301"),
+        ("🧳 Baggage Status", "Show baggage status"),
+        ("💰 Total Revenue", "Show total revenue"),
         ("✈️ Available Aircraft", "Show available aircraft"),
-        ("💰 Flights under ₹6000", "Flights cheaper than 6000"),
-        ("💳 Payments via UPI", "Show payments made with UPI")
+        ("📜 Audit History", "Show audit log")
     ]
     
     for i, (label, query_str) in enumerate(prompts):
@@ -380,7 +367,6 @@ with tab_voice:
         active_query = st.session_state.trigger_query
         st.session_state.trigger_query = None
 
-    # Default initial query if none submitted yet
     if not active_query and not st.session_state.chat_history:
         active_query = st.session_state.last_query
 
@@ -393,7 +379,6 @@ with tab_voice:
         result = voice_query_engine.process_query(active_query, conn, is_mysql=is_mysql)
         exec_ms = round((time.time() - start_time) * 1000, 1)
 
-        # Store in history
         st.session_state.chat_history.insert(0, {
             "query": active_query,
             "category": result["category"],
@@ -427,7 +412,6 @@ with tab_voice:
         </div>
         """, unsafe_allow_html=True)
 
-        # Render speech in browser
         render_voice_output(
             text=result["spoken_text"],
             auto_play=auto_speak,
@@ -439,12 +423,11 @@ with tab_voice:
             st.markdown(f"**Results ({len(result['dataframe'])} records found):**")
             st.dataframe(result["dataframe"], use_container_width=True)
             
-            # Export CSV Button
             csv_data = result["dataframe"].to_csv(index=False).encode('utf-8')
             st.download_button(
                 label="📥 Download Results as CSV",
                 data=csv_data,
-                file_name=f"airport_query_results.csv",
+                file_name="airport_query_results.csv",
                 mime="text/csv"
             )
         elif result["dataframe"] is not None and result["dataframe"].empty:
@@ -454,14 +437,6 @@ with tab_voice:
         with st.expander("🛠️ View Synthesized Relational SQL Query", expanded=False):
             st.code(result["sql"], language="sql")
             st.caption("Formulated using 3NF relational schema joins and constraints.")
-
-    # Interaction History Expander
-    if len(st.session_state.chat_history) > 1:
-        with st.expander("🕒 Recent Voice Interactions History", expanded=False):
-            for h in st.session_state.chat_history[1:]:
-                st.markdown(f"**[{h['time']}] {h['category']}** — *\"{h['query']}\"*")
-                st.caption(f"Spoken: {h['spoken']}")
-                st.markdown("---")
 
 
 # ==============================================================================
@@ -489,7 +464,6 @@ with tab_fids:
     fids_df, _ = db_manager.execute_query(conn, fids_sql, is_mysql=is_mysql)
     
     if not fids_df.empty:
-        # Filter by city search
         search_fids = st.text_input("🔍 Filter FIDS by City or Flight No:", placeholder="e.g. Mumbai, Delhi, AI101...")
         if search_fids:
             s_term = search_fids.strip().lower()
@@ -533,7 +507,160 @@ with tab_tables:
 
 
 # ==============================================================================
-# TAB 4: CUSTOM SQL TERMINAL
+# TAB 4: STORED PROCEDURES & TRIGGERS STUDIO
+# ==============================================================================
+with tab_proc:
+    st.subheader("⚡ Stored Procedures & Triggers Execution Studio")
+    st.caption("Demonstrates atomic PL/SQL operations, Savepoints, Rollbacks, and Audit Triggers (Units 5 & 6).")
+
+    proc_mode = st.radio("Choose Stored Procedure to Execute:", [
+        "1. sp_book_flight (Atomic ACID Booking with Payment & Baggage)",
+        "2. sp_reschedule_flight (Updates Flight & Fires Audit Trigger)",
+        "3. sp_cancel_booking (Rolls back reservation and refunds payment)"
+    ])
+
+    if "sp_book_flight" in proc_mode:
+        st.markdown("#### 🎫 Execute `sp_book_flight`")
+        col_b1, col_b2, col_b3 = st.columns(3)
+        with col_b1:
+            p_name = st.text_input("Passenger Name", value="Aditi Sharma")
+            p_phone = st.text_input("Phone Number", value="9876509999")
+            p_age = st.number_input("Age", min_value=1, max_value=120, value=25)
+        with col_b2:
+            p_flight = st.selectbox("Select Flight", [301, 302, 303, 701, 702, 703])
+            p_seat = st.text_input("Seat No", value="18A")
+        with col_b3:
+            p_method = st.selectbox("Payment Method", ["UPI", "Card", "NetBanking"])
+
+        if st.button("🚀 Execute Atomic Booking (START TRANSACTION)"):
+            success, msg, logs = db_manager.execute_book_flight_transaction(
+                conn, p_name, p_phone, p_age, p_flight, p_seat, p_method, is_mysql=is_mysql
+            )
+            if success:
+                st.success(msg)
+            else:
+                st.error(msg)
+            
+            with st.expander("📝 View Transaction Execution Step-by-Step Log", expanded=True):
+                for l in logs:
+                    st.code(l, language="sql")
+
+    elif "sp_reschedule_flight" in proc_mode:
+        st.markdown("#### ⏰ Execute `sp_reschedule_flight`")
+        col_r1, col_r2 = st.columns(2)
+        with col_r1:
+            rf_id = st.selectbox("Flight ID to Reschedule", [301, 302, 303, 701])
+            new_dep = st.text_input("New Departure Time", value="2026-07-20 09:30:00")
+        with col_r2:
+            new_arr = st.text_input("New Arrival Time", value="2026-07-20 11:30:00")
+
+        if st.button("🔄 Execute Reschedule (Fires trg_after_flight_update)"):
+            success, msg, logs = db_manager.execute_reschedule_flight_transaction(
+                conn, rf_id, new_dep, new_arr, is_mysql=is_mysql
+            )
+            if success:
+                st.success(msg)
+            else:
+                st.error(msg)
+
+            with st.expander("📜 Check Trigger Audit Trail"):
+                audit_df, _ = db_manager.execute_query(conn, "SELECT * FROM flight_audit ORDER BY audit_id DESC LIMIT 5", is_mysql)
+                st.dataframe(audit_df, use_container_width=True)
+
+    elif "sp_cancel_booking" in proc_mode:
+        st.markdown("#### ❌ Execute `sp_cancel_booking`")
+        cb_id = st.number_input("Booking ID to Cancel", min_value=801, max_value=900, value=801)
+        if st.button("⚠️ Cancel Booking & Process Refund"):
+            success, msg, logs = db_manager.execute_cancel_booking_transaction(conn, cb_id, is_mysql)
+            if success:
+                st.success(msg)
+            else:
+                st.error(msg)
+
+
+# ==============================================================================
+# TAB 5: DBMS SYLLABUS LAB (UNITS 1 - 6)
+# ==============================================================================
+with tab_syllabus:
+    st.subheader("📚 Interactive DBMS Syllabus Laboratory")
+    st.caption("Complete mapping to VIT Pune Second-Year B.Tech DBMS Curriculum (CS2227 / ML2302).")
+
+    sub_unit = st.selectbox("Select Syllabus Unit to Explore:", [
+        "Unit 1: Data Modeling, Relational Model & Codd's Rules",
+        "Unit 2 & 3: Relational Algebra & Advanced SQL Suite",
+        "Unit 4: Normalization (1NF to BCNF) & Parquet Storage Simulation",
+        "Unit 5: Transactions, Conflict Serializability & Distributed Databases",
+        "Unit 6: NoSQL, Big Data & Data Warehousing (OLAP Star Schema)"
+    ])
+
+    if "Unit 1" in sub_unit:
+        st.markdown("### 🏛️ Unit 1: Data Modeling & Relational Integrity")
+        c1, c2 = st.columns(2)
+        with c1:
+            st.markdown("#### 3-Tier ANSI/SPARC Architecture")
+            arch = syllabus_engine.Unit1DataModeling.get_three_tier_architecture()
+            st.json(arch)
+        with c2:
+            st.markdown("#### Codd's 12 Rules Compliance")
+            codds = syllabus_engine.Unit1DataModeling.get_codds_rules_evaluation()
+            st.dataframe(pd.DataFrame(codds), use_container_width=True)
+
+        st.markdown("#### Relational Integrity Constraints")
+        constraints = syllabus_engine.Unit1DataModeling.get_integrity_constraints()
+        st.dataframe(pd.DataFrame(constraints), use_container_width=True)
+
+    elif "Unit 2" in sub_unit:
+        st.markdown("### 🧮 Units 2 & 3: Relational Algebra & Advanced SQL Suite")
+        st.markdown("#### Relational Algebra vs SQL Mappings")
+        ra_data = syllabus_engine.Unit2RelationalAlgebra.get_relational_algebra_mappings()
+        st.dataframe(pd.DataFrame(ra_data), use_container_width=True)
+
+        st.markdown("#### Complex Joins & Subqueries Suite")
+        complex_suite = syllabus_engine.Unit2RelationalAlgebra.get_complex_sql_suite()
+        for item in complex_suite:
+            with st.expander(f"🔹 {item['category']}: {item['title']}", expanded=True):
+                st.code(item['sql'], language="sql")
+                st.caption(f"**Explanation:** {item['notes']}")
+
+    elif "Unit 4" in sub_unit:
+        st.markdown("### 📐 Unit 4: Normalization, Parquet Storage & Recovery")
+        c1, c2 = st.columns(2)
+        with c1:
+            st.markdown("#### Normalization Breakdown (1NF ➔ BCNF)")
+            norm = syllabus_engine.Unit4NormalizationAndStorage.get_normalization_breakdown()
+            st.dataframe(pd.DataFrame(norm["stages"]), use_container_width=True)
+            st.info(f"**Proof of Lossless Join:** {norm['lossless_decomposition_proof']}")
+        with c2:
+            st.markdown("#### Parquet Columnar Storage vs Row-Oriented Storage")
+            st.caption("Simulating VIT Pune lecture slide: SELECT passenger_name, age FROM passenger WHERE age > 30;")
+            sim_rows = st.select_slider("Number of Database Tuples", options=[10000, 50000, 100000, 500000], value=100000)
+            parquet_sim = syllabus_engine.Unit4NormalizationAndStorage.simulate_parquet_vs_row_storage(sim_rows)
+            st.json(parquet_sim)
+
+    elif "Unit 5" in sub_unit:
+        st.markdown("### 🔄 Unit 5: Transactions, Serializability & Distributed Systems")
+        st.markdown("#### Conflict Serializability & Precedence Graph Analyzer")
+        st.caption("Tests whether concurrent transaction schedule on Flight seats contains serializability cycles.")
+        ser_result = syllabus_engine.Unit5TransactionsAndConcurrency.test_conflict_serializability()
+        st.json(ser_result)
+
+        st.markdown("#### Distributed Sharding & Hub Partitioning")
+        shard_model = syllabus_engine.Unit5TransactionsAndConcurrency.get_distributed_sharding_model()
+        st.json(shard_model)
+
+    elif "Unit 6" in sub_unit:
+        st.markdown("### 🌐 Unit 6: NoSQL, Big Data & Data Warehousing")
+        st.markdown("#### Multi-Model NoSQL Representations")
+        nosql_data = syllabus_engine.Unit6NoSQLAndDataWarehouse.get_nosql_multi_model_representations()
+        st.json(nosql_data)
+
+        st.markdown("#### Data Warehouse Star Schema & OLAP")
+        dw_data = syllabus_engine.Unit6NoSQLAndDataWarehouse.get_data_warehouse_star_schema()
+        st.json(dw_data)
+
+
+# ==============================================================================
+# TAB 6: CUSTOM SQL TERMINAL
 # ==============================================================================
 with tab_sql:
     st.subheader("💻 Custom Relational SQL Terminal")
@@ -551,7 +678,6 @@ with tab_sql:
     custom_sql = st.text_area("SQL Query Editor:", value=default_sample_sql, height=140)
 
     if st.button("⚡ Run Query", key="btn_run_sql"):
-        # Safe check
         q_strip = custom_sql.strip().lower()
         if not q_strip.startswith("select"):
             st.error("Only SELECT queries are permitted in this console for safety.")

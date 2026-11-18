@@ -1,10 +1,16 @@
 """
 Voice Query Engine for Airport Operations & Passenger Management System
 Translates spoken natural language and text queries into:
-1. Synthesized SQL queries (Equi-Joins, Subqueries, Filters)
+1. Synthesized SQL queries (Equi-Joins, Subqueries, Filters, Aggregations)
 2. Formatted Pandas DataFrame results
 3. Conversational natural language text for display
 4. Concise Voice Output string for Text-To-Speech (TTS) synthesis
+
+Supports Syllabus Scenarios:
+- Joins & Aggregations (Flight schedules, manifests, revenue)
+- Baggage tracking & status (Unit 1 EER)
+- Audit trail queries (Unit 6 Triggers)
+- Conceptual DBMS viva Q&A answers spoken directly
 """
 
 import re
@@ -14,20 +20,12 @@ import db_manager
 def process_query(user_query, conn, is_mysql=False):
     """
     Parses natural language / voice input, generates and runs SQL,
-    and returns:
-    {
-        "category": str,
-        "sql": str,
-        "dataframe": pd.DataFrame,
-        "summary": str,
-        "spoken_text": str,
-        "status": "success" | "info" | "warning"
-    }
+    and returns a structured dictionary for Streamlit & Web portals.
     """
     q = user_query.strip()
     q_lower = q.lower()
 
-    # 1. Greetings / Help
+    # 1. Greetings & Help
     if any(greet in q_lower for greet in ["hello", "hi", "hey", "help", "who are you", "what can you do"]):
         return {
             "category": "👋 Voice Assistant Help",
@@ -36,16 +34,136 @@ def process_query(user_query, conn, is_mysql=False):
             "summary": (
                 "Hello! I am your Voice-Enabled Airport Operations Assistant. "
                 "You can speak queries to search flights, check passenger manifests, "
-                "verify aircraft fleet status, track bookings, and inspect payments."
+                "track baggage, check aircraft fleet status, and review revenue."
             ),
             "spoken_text": (
                 "Hello! I am your Airport Operations Assistant. "
-                "Ask me about flights from any city, passenger lists, aircraft fleet, or payment details."
+                "Ask me about flights from any city, passenger manifests, baggage status, or revenue."
             ),
             "status": "info"
         }
 
-    # 2. Count / Summary queries
+    # 2. Baggage Tracking Queries
+    if "baggage" in q_lower or "luggage" in q_lower or "bags" in q_lower:
+        # Check if booking id mentioned
+        m_bid = re.search(r'(?:booking|ticket)\s*(?:#|id|number)?\s*(\d+)', q_lower)
+        m_name = re.search(r'(?:for|passenger)\s+([a-zA-Z]+)', q_lower)
+
+        if m_bid:
+            bid = int(m_bid.group(1))
+            sql = f"""
+            SELECT 
+                bg.baggage_id AS 'Bag Tag',
+                bg.booking_id AS 'Booking ID',
+                p.passenger_name AS 'Passenger',
+                f.flight_no AS 'Flight',
+                bg.baggage_weight AS 'Weight (kg)',
+                bg.baggage_type AS 'Type',
+                bg.baggage_status AS 'Status'
+            FROM baggage bg
+            JOIN booking b ON bg.booking_id = b.booking_id
+            JOIN passenger p ON b.passenger_id = p.passenger_id
+            JOIN flight f ON b.flight_id = f.flight_id
+            WHERE bg.booking_id = {bid};
+            """
+            df, err = db_manager.execute_query(conn, sql, is_mysql)
+            if not df.empty:
+                status = df.iloc[0]['Status']
+                pname = df.iloc[0]['Passenger']
+                weight = df.iloc[0]['Weight (kg)']
+                spoken = f"Baggage for booking {bid} belonging to {pname} weighs {weight} kilograms and is currently {status}."
+                return {
+                    "category": "🧳 Baggage Tracking",
+                    "sql": sql,
+                    "dataframe": df,
+                    "summary": f"Found baggage record for Booking #{bid}.",
+                    "spoken_text": spoken,
+                    "status": "success"
+                }
+
+        # General baggage query
+        sql = """
+        SELECT 
+            bg.baggage_id AS 'Bag Tag',
+            bg.booking_id AS 'Booking ID',
+            p.passenger_name AS 'Passenger',
+            f.flight_no AS 'Flight',
+            bg.baggage_weight AS 'Weight (kg)',
+            bg.baggage_type AS 'Type',
+            bg.baggage_status AS 'Status'
+        FROM baggage bg
+        JOIN booking b ON bg.booking_id = b.booking_id
+        JOIN passenger p ON b.passenger_id = p.passenger_id
+        JOIN flight f ON b.flight_id = f.flight_id
+        LIMIT 25;
+        """
+        df, err = db_manager.execute_query(conn, sql, is_mysql)
+        return {
+            "category": "🧳 Baggage Manifest",
+            "sql": sql,
+            "dataframe": df,
+            "summary": f"Retrieved {len(df)} registered baggage items from the database.",
+            "spoken_text": f"Displaying baggage manifest with {len(df)} checked luggage items across scheduled flights.",
+            "status": "success"
+        }
+
+    # 3. Revenue & Financial Summary Queries
+    if "revenue" in q_lower or "earning" in q_lower or "sales" in q_lower or "collection" in q_lower:
+        sql = """
+        SELECT 
+            f.flight_no AS 'Flight No',
+            a1.city || ' -> ' || a2.city AS 'Route',
+            COUNT(b.booking_id) AS 'Confirmed Tickets',
+            SUM(p.amount) AS 'Total Revenue (INR)'
+        FROM flight f
+        JOIN airport a1 ON f.source_airport = a1.airport_id
+        JOIN airport a2 ON f.destination_airport = a2.airport_id
+        JOIN booking b ON f.flight_id = b.flight_id
+        JOIN payment p ON b.booking_id = p.booking_id
+        WHERE p.payment_status = 'Paid'
+        GROUP BY f.flight_id, f.flight_no, a1.city, a2.city
+        ORDER BY SUM(p.amount) DESC;
+        """
+        df, err = db_manager.execute_query(conn, sql, is_mysql)
+        if not df.empty:
+            tot_rev = df['Total Revenue (INR)'].sum()
+            top_flight = df.iloc[0]['Flight No']
+            top_route = df.iloc[0]['Route']
+            top_amt = int(df.iloc[0]['Total Revenue (INR)'])
+            spoken = f"Total airport ticket revenue stands at {int(tot_rev):,} rupees. Top earning route is flight {top_flight} on {top_route} generating {top_amt:,} rupees."
+            return {
+                "category": "💰 Financial & Route Revenue Summary",
+                "sql": sql,
+                "dataframe": df,
+                "summary": f"Calculated aggregated ticket revenues across all commercial flight routes.",
+                "spoken_text": spoken,
+                "status": "success"
+            }
+
+    # 4. Flight Audit Trail Queries
+    if "audit" in q_lower or "history" in q_lower or "log" in q_lower or "changes" in q_lower:
+        sql = """
+        SELECT 
+            audit_id AS 'Audit ID',
+            flight_id AS 'Flight ID',
+            operation_type AS 'Operation',
+            message AS 'Message / Description',
+            operation_time AS 'Timestamp'
+        FROM flight_audit
+        ORDER BY audit_id DESC
+        LIMIT 20;
+        """
+        df, err = db_manager.execute_query(conn, sql, is_mysql)
+        return {
+            "category": "📜 Database Audit Trail",
+            "sql": sql,
+            "dataframe": df,
+            "summary": f"Retrieved {len(df)} database trigger audit logs.",
+            "spoken_text": f"Displaying {len(df)} recorded audit log events captured by database triggers.",
+            "status": "success"
+        }
+
+    # 5. Count / Statistics queries
     if ("how many" in q_lower or "total" in q_lower or "count" in q_lower) and "passenger" in q_lower:
         sql = "SELECT COUNT(*) AS total_passengers FROM passenger;"
         df, err = db_manager.execute_query(conn, sql, is_mysql)
@@ -72,7 +190,7 @@ def process_query(user_query, conn, is_mysql=False):
             "status": "success"
         }
 
-    # 3. Flights from a specific city / origin
+    # 6. Flights from a specific city / origin
     m_from = re.search(r'(?:from|departing|leaving)\s+([a-zA-Z]+)', q_lower)
     if ("flight" in q_lower or "depart" in q_lower) and m_from:
         city = m_from.group(1).strip()
@@ -98,29 +216,29 @@ def process_query(user_query, conn, is_mysql=False):
             fare = int(df.iloc[0]['Fare (INR)'])
             spoken = (
                 f"Found {count} flights departing from {city.title()}. "
-                f"The earliest departure is flight {first_flight} to {first_dest} with a fare of {fare} rupees."
+                f"The earliest is {first_flight} to {first_dest} with fare starting at {fare} rupees."
             )
             return {
-                "category": f"🛫 Departures from {city.title()}",
-                "sql": sql.strip(),
+                "category": f"🛫 Outbound Flights from {city.title()}",
+                "sql": sql,
                 "dataframe": df,
-                "summary": f"Found **{count}** flight(s) departing from **{city.title()}**.",
+                "summary": f"Found **{count}** flights departing from **{city.title()}**.",
                 "spoken_text": spoken,
                 "status": "success"
             }
         else:
             return {
-                "category": f"🛫 Departures from {city.title()}",
-                "sql": sql.strip(),
+                "category": f"🛫 Flights from {city.title()}",
+                "sql": sql,
                 "dataframe": df,
-                "summary": f"No flights found departing from **{city.title()}**.",
-                "spoken_text": f"No flights were found departing from {city.title()}.",
+                "summary": f"No flights found departing from '{city.title()}'.",
+                "spoken_text": f"There are no scheduled flights departing from {city.title()} right now.",
                 "status": "warning"
             }
 
-    # 4. Flights to a specific city / destination
-    m_to = re.search(r'(?:to|arriving at|going to|destined for)\s+([a-zA-Z]+)', q_lower)
-    if ("flight" in q_lower or "arriv" in q_lower) and m_to:
+    # 7. Flights to a specific destination
+    m_to = re.search(r'(?:to|arriving|destination)\s+([a-zA-Z]+)', q_lower)
+    if ("flight" in q_lower or "arrive" in q_lower) and m_to:
         city = m_to.group(1).strip()
         sql = f"""
         SELECT 
@@ -140,304 +258,211 @@ def process_query(user_query, conn, is_mysql=False):
         if not df.empty:
             count = len(df)
             first_flight = df.iloc[0]['Flight No']
-            first_orig = df.iloc[0]['Origin']
-            fare = int(df.iloc[0]['Fare (INR)'])
-            spoken = (
-                f"Found {count} flights arriving in {city.title()}. "
-                f"The earliest is flight {first_flight} from {first_orig} with a fare of {fare} rupees."
-            )
+            first_origin = df.iloc[0]['Origin']
+            spoken = f"Found {count} flights heading to {city.title()}. Flight {first_flight} from {first_origin} is arriving earliest."
             return {
-                "category": f"🛬 Arrivals at {city.title()}",
-                "sql": sql.strip(),
+                "category": f"🛬 Inbound Flights to {city.title()}",
+                "sql": sql,
                 "dataframe": df,
-                "summary": f"Found **{count}** flight(s) arriving at **{city.title()}**.",
+                "summary": f"Found **{count}** flights arriving into **{city.title()}**.",
                 "spoken_text": spoken,
                 "status": "success"
             }
         else:
             return {
-                "category": f"🛬 Arrivals at {city.title()}",
-                "sql": sql.strip(),
+                "category": f"🛬 Flights to {city.title()}",
+                "sql": sql,
                 "dataframe": df,
-                "summary": f"No scheduled flights found arriving at **{city.title()}**.",
-                "spoken_text": f"No scheduled flights were found arriving at {city.title()}.",
+                "summary": f"No inbound flights found for '{city.title()}'.",
+                "spoken_text": f"No scheduled inbound flights to {city.title()} were found.",
                 "status": "warning"
             }
 
-    # 5. Passengers on a specific flight (Manifest)
-    m_flight_no = re.search(r'(?:flight|flt)\s*([a-zA-Z]*\d+)', q_lower)
-    if "passenger" in q_lower and m_flight_no:
-        f_val = m_flight_no.group(1).upper()
+    # 8. Passenger manifest on a flight
+    m_flight = re.search(r'(?:flight|flt|on)\s*(?:#|id|no)?\s*([a-zA-Z0-9]+)', q_lower)
+    if "passenger" in q_lower and m_flight:
+        target = m_flight.group(1).upper()
         sql = f"""
         SELECT 
             p.passenger_id AS 'Passenger ID',
             p.passenger_name AS 'Name',
-            p.phone AS 'Phone',
+            p.phone AS 'Phone Number',
             p.age AS 'Age',
-            b.seat_no AS 'Seat',
-            b.booking_status AS 'Status'
+            b.seat_no AS 'Seat No',
+            b.booking_status AS 'Booking Status',
+            f.flight_no AS 'Flight No'
         FROM passenger p
         JOIN booking b ON p.passenger_id = b.passenger_id
         JOIN flight f ON b.flight_id = f.flight_id
-        WHERE UPPER(f.flight_no) = '{f_val}' OR f.flight_id = '{f_val}'
+        WHERE f.flight_no = '{target}' OR CAST(f.flight_id AS TEXT) = '{target}'
         ORDER BY b.seat_no;
         """
         df, err = db_manager.execute_query(conn, sql, is_mysql)
         if not df.empty:
             count = len(df)
-            p_names = ", ".join(df['Name'].head(3).tolist())
-            spoken = f"Flight {f_val} has {count} passengers on the manifest, including {p_names}."
+            names = ", ".join(df['Name'].head(3).tolist())
+            spoken = f"Found {count} passengers booked on flight {target}. Passengers include {names}."
             return {
-                "category": f"📋 Passenger Manifest: Flight {f_val}",
-                "sql": sql.strip(),
+                "category": f"📋 Passenger Manifest (Flight {target})",
+                "sql": sql,
                 "dataframe": df,
-                "summary": f"Manifest for flight **{f_val}** contains **{count}** confirmed passenger(s).",
+                "summary": f"Found **{count}** passengers booked on flight **{target}**.",
                 "spoken_text": spoken,
                 "status": "success"
             }
-        else:
-            return {
-                "category": f"📋 Passenger Manifest: Flight {f_val}",
-                "sql": sql.strip(),
-                "dataframe": df,
-                "summary": f"No passengers found booked on flight **{f_val}**.",
-                "spoken_text": f"No passengers were found on the manifest for flight {f_val}.",
-                "status": "warning"
-            }
 
-    # 6. Specific flight lookup by code (e.g., AI101 or 301)
-    if m_flight_no and not ("passenger" in q_lower or "booking" in q_lower):
-        f_val = m_flight_no.group(1).upper()
+    # 9. Specific Passenger Search by Name
+    m_pname = re.search(r'(?:passenger|who is|details of|find)\s+([a-zA-Z]+)', q_lower)
+    if ("passenger" in q_lower or "booked" in q_lower) and m_pname:
+        name = m_pname.group(1).strip()
         sql = f"""
         SELECT 
-            f.flight_no AS 'Flight No',
-            a1.city AS 'Origin',
-            a2.city AS 'Destination',
-            f.departure_time AS 'Departure',
-            f.arrival_time AS 'Arrival',
-            ac.model AS 'Aircraft',
-            f.fare AS 'Fare (INR)'
-        FROM flight f
-        JOIN airport a1 ON f.source_airport = a1.airport_id
-        JOIN airport a2 ON f.destination_airport = a2.airport_id
-        LEFT JOIN aircraft ac ON f.aircraft_id = ac.aircraft_id
-        WHERE UPPER(f.flight_no) = '{f_val}' OR f.flight_id = '{f_val}';
+            p.passenger_id AS 'ID',
+            p.passenger_name AS 'Passenger Name',
+            p.phone AS 'Phone',
+            p.age AS 'Age',
+            f.flight_no AS 'Flight',
+            b.seat_no AS 'Seat',
+            b.booking_status AS 'Status'
+        FROM passenger p
+        LEFT JOIN booking b ON p.passenger_id = b.passenger_id
+        LEFT JOIN flight f ON b.flight_id = f.flight_id
+        WHERE LOWER(p.passenger_name) LIKE '%{name.lower()}%';
         """
         df, err = db_manager.execute_query(conn, sql, is_mysql)
         if not df.empty:
-            f_row = df.iloc[0]
-            spoken = (
-                f"Flight {f_row['Flight No']} flies from {f_row['Origin']} to {f_row['Destination']}, "
-                f"departing at {f_row['Departure'].split(' ')[1]}, fare is {int(f_row['Fare (INR)'])} rupees."
-            )
+            p_full = df.iloc[0]['Passenger Name']
+            f_no = df.iloc[0]['Flight'] or "None"
+            seat = df.iloc[0]['Seat'] or "Unassigned"
+            spoken = f"Found passenger {p_full}. Assigned to flight {f_no}, seat {seat}."
             return {
-                "category": f"✈️ Flight Status: {f_val}",
-                "sql": sql.strip(),
+                "category": f"👤 Passenger Details: {p_full}",
+                "sql": sql,
                 "dataframe": df,
-                "summary": f"Details for flight **{f_val}** retrieved successfully.",
+                "summary": f"Passenger **{p_full}** matches your inquiry.",
                 "spoken_text": spoken,
                 "status": "success"
             }
 
-    # 7. Fare Filter (Cheaper than / under / budget)
-    m_fare = re.search(r'(?:cheaper than|under|less than|below|budget)\s*(?:rs\.?|inr|₹)?\s*(\d+)', q_lower)
-    if ("fare" in q_lower or "flight" in q_lower or "cheap" in q_lower) and m_fare:
-        target_fare = float(m_fare.group(1))
-        sql = f"""
-        SELECT 
-            f.flight_no AS 'Flight No',
-            a1.city AS 'Origin',
-            a2.city AS 'Destination',
-            f.departure_time AS 'Departure Time',
-            f.fare AS 'Fare (INR)'
-        FROM flight f
-        JOIN airport a1 ON f.source_airport = a1.airport_id
-        JOIN airport a2 ON f.destination_airport = a2.airport_id
-        WHERE f.fare <= {target_fare}
-        ORDER BY f.fare ASC;
-        """
-        df, err = db_manager.execute_query(conn, sql, is_mysql)
-        if not df.empty:
-            count = len(df)
-            min_fare = int(df.iloc[0]['Fare (INR)'])
-            cheapest_flight = df.iloc[0]['Flight No']
-            spoken = (
-                f"Found {count} flights with fares under {int(target_fare)} rupees. "
-                f"The most affordable is flight {cheapest_flight} at {min_fare} rupees."
-            )
-            return {
-                "category": f"💰 Budget Flights (< ₹{int(target_fare)})",
-                "sql": sql.strip(),
-                "dataframe": df,
-                "summary": f"Found **{count}** flight(s) with fares under **₹{int(target_fare)}**.",
-                "spoken_text": spoken,
-                "status": "success"
-            }
+    # 10. Aircraft Fleet Status Queries
+    if "aircraft" in q_lower or "plane" in q_lower or "fleet" in q_lower:
+        status_filter = ""
+        if "available" in q_lower:
+            status_filter = "WHERE status = 'Available'"
+        elif "maintenance" in q_lower:
+            status_filter = "WHERE status = 'Maintenance'"
 
-    # 8. Available Aircraft Fleet
-    if any(k in q_lower for k in ["aircraft", "fleet", "plane", "airplane"]):
-        only_avail = "available" in q_lower or "active" in q_lower or "ready" in q_lower
-        where_clause = "WHERE status = 'Available'" if only_avail else ""
         sql = f"""
         SELECT 
             aircraft_id AS 'Aircraft ID',
             model AS 'Aircraft Model',
-            capacity AS 'Passenger Capacity',
+            capacity AS 'Seat Capacity',
             manufacturer AS 'Manufacturer',
             status AS 'Status'
         FROM aircraft
-        {where_clause}
+        {status_filter}
         ORDER BY capacity DESC;
         """
         df, err = db_manager.execute_query(conn, sql, is_mysql)
         count = len(df)
-        spoken = f"Retrieved {count} aircraft records. Models include {df.iloc[0]['Aircraft Model']} with capacity of {df.iloc[0]['Passenger Capacity']} passengers."
+        spoken = f"Retrieved {count} aircraft in the fleet. The largest model is {df.iloc[0]['Aircraft Model']} with capacity of {df.iloc[0]['Seat Capacity']} seats."
         return {
-            "category": "🛫 Aircraft Fleet Operations",
-            "sql": sql.strip(),
+            "category": "✈️ Aircraft Fleet Status",
+            "sql": sql,
             "dataframe": df,
-            "summary": f"Displaying **{count}** aircraft in the fleet.",
+            "summary": f"Fleet inventory contains **{count}** aircraft records.",
             "spoken_text": spoken,
             "status": "success"
         }
 
-    # 9. Payment queries
-    if any(k in q_lower for k in ["payment", "paid", "upi", "card", "transaction"]):
-        method = "UPI" if "upi" in q_lower else ("Card" if "card" in q_lower else None)
-        where_clause = f"WHERE p.payment_method = '{method}'" if method else ""
+    # 11. Payments and Payment Methods
+    if "payment" in q_lower or "paid" in q_lower or "upi" in q_lower or "card" in q_lower:
+        filter_str = ""
+        if "upi" in q_lower:
+            filter_str = "WHERE p.payment_method = 'UPI'"
+        elif "card" in q_lower:
+            filter_str = "WHERE p.payment_method = 'Card'"
+        elif "netbanking" in q_lower or "net banking" in q_lower:
+            filter_str = "WHERE p.payment_method = 'NetBanking'"
+
         sql = f"""
         SELECT 
             p.payment_id AS 'Payment ID',
             p.booking_id AS 'Booking ID',
+            p.payment_date AS 'Date',
             p.amount AS 'Amount (INR)',
-            p.payment_method AS 'Payment Method',
-            p.payment_status AS 'Status',
-            p.payment_date AS 'Date'
+            p.payment_method AS 'Method',
+            p.payment_status AS 'Status'
         FROM payment p
-        {where_clause}
-        ORDER BY p.payment_date DESC;
+        {filter_str}
+        ORDER BY p.amount DESC
+        LIMIT 25;
         """
         df, err = db_manager.execute_query(conn, sql, is_mysql)
         count = len(df)
-        total_amount = int(df['Amount (INR)'].sum()) if not df.empty else 0
-        spoken = f"Found {count} payment records with a total value of {total_amount} rupees."
+        total_sum = df['Amount (INR)'].sum() if not df.empty else 0
+        spoken = f"Found {count} payment transactions totaling {int(total_sum):,} rupees."
         return {
-            "category": f"💳 Payment Records {f'({method})' if method else ''}",
-            "sql": sql.strip(),
+            "category": "💳 Payment Transactions",
+            "sql": sql,
             "dataframe": df,
-            "summary": f"Found **{count}** payment records totaling **₹{total_amount:,}**.",
+            "summary": f"Retrieved **{count}** payment records from the billing ledger.",
             "spoken_text": spoken,
             "status": "success"
         }
 
-    # 10. Passenger search by name
-    m_name = re.search(r'(?:find|search|where is|passenger|booking for)\s+([a-zA-Z]+)', q_lower)
-    if "passenger" in q_lower and m_name:
-        candidate_name = m_name.group(1).strip()
-        if candidate_name not in ["the", "all", "on", "in", "for", "from", "to", "flight"]:
-            sql = f"""
-            SELECT 
-                p.passenger_id AS 'ID',
-                p.passenger_name AS 'Name',
-                p.phone AS 'Phone',
-                p.age AS 'Age',
-                f.flight_no AS 'Flight',
-                b.seat_no AS 'Seat',
-                b.booking_status AS 'Booking Status'
-            FROM passenger p
-            LEFT JOIN booking b ON p.passenger_id = b.passenger_id
-            LEFT JOIN flight f ON b.flight_id = f.flight_id
-            WHERE LOWER(p.passenger_name) LIKE '%{candidate_name}%';
-            """
-            df, err = db_manager.execute_query(conn, sql, is_mysql)
-            if not df.empty:
-                count = len(df)
-                p_name = df.iloc[0]['Name']
-                seat = df.iloc[0]['Seat']
-                flt = df.iloc[0]['Flight']
-                spoken = f"Found passenger {p_name} assigned to flight {flt} in seat {seat}."
-                return {
-                    "category": f"👤 Passenger Profile: {candidate_name.title()}",
-                    "sql": sql.strip(),
-                    "dataframe": df,
-                    "summary": f"Found **{count}** record(s) matching **{candidate_name.title()}**.",
-                    "spoken_text": spoken,
-                    "status": "success"
-                }
-
-    # 11. Bookings lookup
-    if any(k in q_lower for k in ["booking", "reservation", "seats"]):
-        sql = """
+    # 12. Fare comparison / Cheap flights
+    if "cheap" in q_lower or "lowest" in q_lower or "under" in q_lower or "less than" in q_lower:
+        m_amt = re.search(r'(\d+)', q_lower)
+        threshold = int(m_amt.group(1)) if m_amt else 6000
+        sql = f"""
         SELECT 
-            b.booking_id AS 'Booking ID',
-            p.passenger_name AS 'Passenger',
-            f.flight_no AS 'Flight',
-            b.booking_date AS 'Date',
-            b.seat_no AS 'Seat',
-            b.booking_status AS 'Status'
-        FROM booking b
-        JOIN passenger p ON b.passenger_id = p.passenger_id
-        JOIN flight f ON b.flight_id = f.flight_id
-        ORDER BY b.booking_id ASC;
+            f.flight_no AS 'Flight No',
+            a1.city AS 'Origin',
+            a2.city AS 'Destination',
+            f.fare AS 'Fare (INR)'
+        FROM flight f
+        JOIN airport a1 ON f.source_airport = a1.airport_id
+        JOIN airport a2 ON f.destination_airport = a2.airport_id
+        WHERE f.fare <= {threshold}
+        ORDER BY f.fare ASC;
         """
         df, err = db_manager.execute_query(conn, sql, is_mysql)
-        count = len(df)
-        spoken = f"Retrieved {count} active flight reservations from the Booking table."
-        return {
-            "category": "🎟️ Confirmed Reservations",
-            "sql": sql.strip(),
-            "dataframe": df,
-            "summary": f"Found **{count}** booking reservation(s).",
-            "spoken_text": spoken,
-            "status": "success"
-        }
+        if not df.empty:
+            cheapest = df.iloc[0]
+            spoken = f"Found {len(df)} flights under {threshold} rupees. The cheapest is {cheapest['Flight No']} from {cheapest['Origin']} to {cheapest['Destination']} at {int(cheapest['Fare (INR)'])} rupees."
+            return {
+                "category": f"🏷️ Flights Under ₹{threshold}",
+                "sql": sql,
+                "dataframe": df,
+                "summary": f"Found **{len(df)}** affordable flights priced at or below ₹{threshold}.",
+                "spoken_text": spoken,
+                "status": "success"
+            }
 
-    # 12. Airport hubs
-    if any(k in q_lower for k in ["airport", "hub", "terminal"]):
-        sql = """
-        SELECT 
-            airport_id AS 'Airport ID',
-            airport_name AS 'Airport Name',
-            city AS 'City',
-            country AS 'Country',
-            airport_code AS 'IATA Code'
-        FROM airport
-        ORDER BY city ASC;
-        """
-        df, err = db_manager.execute_query(conn, sql, is_mysql)
-        count = len(df)
-        spoken = f"The airport network connects {count} major hubs across India."
-        return {
-            "category": "🌐 Airport Network Hubs",
-            "sql": sql.strip(),
-            "dataframe": df,
-            "summary": f"Registered **{count}** airport hubs.",
-            "spoken_text": spoken,
-            "status": "success"
-        }
-
-    # 13. Default: Show active flights
+    # 13. Default Fallback Query (Comprehensive Flight Schedule)
     sql = """
     SELECT 
         f.flight_no AS 'Flight No',
         a1.city AS 'Origin',
         a2.city AS 'Destination',
         f.departure_time AS 'Departure',
-        f.arrival_time AS 'Arrival',
-        f.fare AS 'Fare (INR)'
+        f.fare AS 'Fare (INR)',
+        ac.model AS 'Aircraft'
     FROM flight f
     JOIN airport a1 ON f.source_airport = a1.airport_id
     JOIN airport a2 ON f.destination_airport = a2.airport_id
-    ORDER BY f.departure_time ASC;
+    LEFT JOIN aircraft ac ON f.aircraft_id = ac.aircraft_id
+    ORDER BY f.departure_time ASC
+    LIMIT 15;
     """
     df, err = db_manager.execute_query(conn, sql, is_mysql)
-    count = len(df)
-    spoken = f"Displaying {count} active commercial flights currently scheduled in the Airport system."
+    spoken = f"Here is the active airport flight schedule with {len(df)} upcoming commercial flights."
     return {
-        "category": "✈️ Flight Schedules Overview",
-        "sql": sql.strip(),
+        "category": "🛫 General Airport Flight Schedule",
+        "sql": sql,
         "dataframe": df,
-        "summary": f"Showing **{count}** scheduled flight operations.",
+        "summary": "Displaying active commercial flight connections across major airport hubs.",
         "spoken_text": spoken,
         "status": "info"
     }

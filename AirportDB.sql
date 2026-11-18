@@ -382,6 +382,35 @@ INSERT INTO `payment` VALUES (901,801,'2026-07-10',5200.00,'UPI','Paid'),(902,80
 UNLOCK TABLES;
 
 --
+-- Table structure for table `baggage`
+--
+
+DROP TABLE IF EXISTS `baggage`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE `baggage` (
+  `baggage_id` int NOT NULL,
+  `booking_id` int DEFAULT NULL,
+  `baggage_weight` decimal(5,2) DEFAULT NULL,
+  `baggage_type` varchar(30) DEFAULT NULL,
+  `baggage_status` varchar(30) DEFAULT 'Checked-in',
+  PRIMARY KEY (`baggage_id`),
+  KEY `booking_id` (`booking_id`),
+  CONSTRAINT `baggage_ibfk_1` FOREIGN KEY (`booking_id`) REFERENCES `booking` (`booking_id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+
+--
+-- Dumping data for table `baggage`
+--
+
+LOCK TABLES `baggage` WRITE;
+/*!40000 ALTER TABLE `baggage` DISABLE KEYS */;
+INSERT INTO `baggage` VALUES (1001,801,15.5,'Check-in Luggage','Loaded'),(1002,802,18.0,'Check-in Luggage','Loaded'),(1003,803,12.0,'Cabin Bag','Loaded'),(1004,804,22.5,'Check-in Luggage','Loaded'),(1005,805,14.0,'Cabin Bag','Loaded'),(1006,806,19.2,'Check-in Luggage','Loaded'),(1007,807,16.8,'Check-in Luggage','Loaded'),(1008,808,11.5,'Cabin Bag','Loaded'),(1009,809,20.0,'Check-in Luggage','Loaded'),(1010,810,17.4,'Check-in Luggage','Loaded'),(1011,811,13.2,'Cabin Bag','Loaded'),(1012,812,21.0,'Check-in Luggage','Loaded'),(1013,813,15.0,'Check-in Luggage','Loaded'),(1014,814,12.5,'Cabin Bag','Loaded'),(1015,815,18.5,'Check-in Luggage','Loaded'),(1016,816,23.0,'Check-in Luggage','Loaded'),(1017,817,14.5,'Cabin Bag','Loaded'),(1018,818,19.0,'Check-in Luggage','Loaded'),(1019,819,16.0,'Check-in Luggage','Loaded'),(1020,820,11.0,'Cabin Bag','Loaded'),(1021,821,20.5,'Check-in Luggage','Loaded'),(1022,822,17.0,'Check-in Luggage','Loaded'),(1023,823,13.8,'Cabin Bag','Loaded'),(1024,824,22.0,'Check-in Luggage','Loaded'),(1025,825,15.2,'Check-in Luggage','Loaded'),(1026,826,12.8,'Cabin Bag','Loaded'),(1027,827,18.2,'Check-in Luggage','Loaded'),(1028,828,21.5,'Check-in Luggage','Loaded'),(1029,829,14.2,'Cabin Bag','Loaded'),(1030,830,19.5,'Check-in Luggage','Loaded');
+/*!40000 ALTER TABLE `baggage` ENABLE KEYS */;
+UNLOCK TABLES;
+
+--
 -- Current Database: `AirportDB`
 --
 
