@@ -72,7 +72,13 @@ The system is structured as a **strictly normalized 3NF / BCNF relational databa
 
 ---
 
-## 🎙️ Two-Way Voice Architecture
+## 🎙️ Two-Way Voice Architecture & Modern Mobile UI
+
+The system features a **mobile-inspired voice search console** with:
+- **Pulsing Coral-Pink Mic Card**: Deep indigo-blue gradient background, glowing coral-pink microphone button with concentric pulse ripple rings, dynamic floating particle bubbles, and an animated status bar.
+- **Quick Voice Option Pills**: Fast one-click category chips (`🛫 Flights from Mumbai`, `🛬 Inbound Delhi`, `👥 Manifest AI101`, `💰 Route Revenue`, `🧳 Baggage Tracking`, `✈️ Fleet Availability`).
+- **Karaoke / Lyrics-Style Spoken Output**: Real-time line-by-line spoken response presented like synchronized song lyrics alongside animated bouncing audio equalizer soundwaves.
+- **Structured Relational Data Tables**: Clear, sortable, interactive flight, passenger, baggage, and revenue tables generated instantly beneath the spoken lyrics.
 
 ```
  User Speaks into Mic (e.g. "Flights from Mumbai")
@@ -94,8 +100,9 @@ The system is structured as a **strictly normalized 3NF / BCNF relational databa
   ▼                                     ▼
 [Pandas DataFrame]            [Voice Speech Output]
 - Rendered in interactive     - Spoken aloud via Web Speech API
-  data tables                 - Audio replay button
-- CSV Export available        - Speed controls
+  data tables                 - Karaoke/Lyrics-style visual display
+- CSV Export available        - Animated equalizer soundwaves
+                              - Audio replay & speed controls
 ```
 
 ### Sample Supported Voice Queries
@@ -107,6 +114,15 @@ The system is structured as a **strictly normalized 3NF / BCNF relational databa
 - *"Show available aircraft"* ➔ Queries fleet availability ordered by seating capacity.
 - *"Flights under 6000"* ➔ Filtered price query sorted by fare ascending.
 - *"Show audit history"* ➔ Inspects trigger-generated audit trail.
+
+---
+
+## 📊 Academic Presentation (14 Slides PPTX)
+
+The repository includes a complete, defense-ready **14-slide academic PowerPoint presentation** formatted specifically for the VIT Pune DBMS End-Semester project evaluation:
+- **File:** `Airport_Management_System_EndSem_Presentation.pptx`
+- **Slide Generator:** `generate_presentation.py`
+- **Features:** 16:9 widescreen layout, custom aviation dark-blue visual theme, slide-by-slide background templates, relational schema diagrams, SQL queries, normalized schema tables, transaction flowcharts, and viva defense talking points.
 
 ---
 
