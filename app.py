@@ -3,6 +3,7 @@ import io
 import time
 import json
 import re
+import textwrap
 import streamlit as st
 import pandas as pd
 import streamlit.components.v1 as components
@@ -80,118 +81,53 @@ st.markdown("""
     }
 
     /* ========================================================================= */
-    /* MOBILE PHONE MOCKUP VOICE SEARCH CARD (Inspired by User Screenshot)       */
+    /* SIMPLE ELEGANT MICROPHONE VOICE CONTROLLER                                */
     /* ========================================================================= */
-    .phone-mockup {
-        background: linear-gradient(180deg, #070e24 0%, #0d214d 45%, #081534 100%);
-        border: 4px solid #1e293b;
-        border-radius: 36px;
-        padding: 20px 18px;
-        box-shadow: 0 20px 60px rgba(0, 0, 0, 0.6), inset 0 1px 3px rgba(255, 255, 255, 0.12);
-        position: relative;
-        overflow: hidden;
-        margin: 0 auto 20px auto;
+    .mic-card-simple {
+        background: linear-gradient(135deg, rgba(13, 27, 56, 0.95) 0%, rgba(18, 38, 78, 0.9) 100%);
+        border: 1px solid rgba(56, 189, 248, 0.3);
+        border-radius: 24px;
+        padding: 26px 20px 20px 20px;
         text-align: center;
+        box-shadow: 0 16px 40px rgba(0, 0, 0, 0.5), inset 0 1px 2px rgba(255, 255, 255, 0.1);
+        margin-bottom: 16px;
     }
 
-    .phone-top-bar {
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-        font-family: monospace;
-        font-size: 0.76rem;
-        color: #94a3b8;
-        margin-bottom: 12px;
-        padding: 0 8px;
-    }
-
-    .voice-search-title {
-        font-size: 1.15rem;
-        font-weight: 700;
-        color: #ffffff;
-        letter-spacing: 0.02em;
-        margin-bottom: 14px;
-    }
-
-    /* Floating Colorful Particles */
-    .mic-stage-box {
-        position: relative;
-        width: 220px;
-        height: 200px;
-        margin: 0 auto;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-    }
-
-    .particle {
-        position: absolute;
-        border-radius: 50%;
-        filter: drop-shadow(0 0 6px currentColor);
-    }
-    .p-pink-1   { width: 14px; height: 14px; background: #ff2a6d; color: #ff2a6d; top: 22px; left: 18px; }
-    .p-yellow-1 { width: 12px; height: 12px; background: #fbbf24; color: #fbbf24; top: 14px; left: 75px; }
-    .p-cyan-1   { width: 15px; height: 15px; background: #22d3ee; color: #22d3ee; top: 26px; right: 24px; }
-    .p-yellow-2 { width: 10px; height: 10px; background: #f59e0b; color: #f59e0b; top: 72px; right: 12px; }
-    .p-cyan-2   { width: 11px; height: 11px; background: #38bdf8; color: #38bdf8; bottom: 35px; left: 16px; }
-    .p-yellow-3 { width: 16px; height: 16px; background: #fbbf24; color: #fbbf24; bottom: 16px; left: 40px; }
-    .p-pink-2   { width: 11px; height: 11px; background: #f43f5e; color: #f43f5e; bottom: 30px; right: 20px; }
-
-    /* Concentric Pulsing Coral-Pink Microphone Orb */
     @keyframes pulse-ring-glow {
         0% { transform: scale(0.96); box-shadow: 0 0 0 0 rgba(255, 42, 109, 0.7); }
-        70% { transform: scale(1.04); box-shadow: 0 0 0 22px rgba(255, 42, 109, 0); }
+        70% { transform: scale(1.05); box-shadow: 0 0 0 20px rgba(255, 42, 109, 0); }
         100% { transform: scale(0.96); box-shadow: 0 0 0 0 rgba(255, 42, 109, 0); }
     }
 
-    .mic-orb {
-        width: 130px;
-        height: 130px;
+    .mic-icon-circle {
+        width: 104px;
+        height: 104px;
+        margin: 0 auto 16px auto;
         border-radius: 50%;
         background: radial-gradient(circle at 35% 35%, #ff4b72 0%, #ff1a4a 65%, #c8002d 100%);
         display: flex;
         align-items: center;
         justify-content: center;
-        box-shadow: 0 10px 30px rgba(255, 26, 74, 0.5), inset 0 -4px 8px rgba(0,0,0,0.3);
+        box-shadow: 0 8px 30px rgba(255, 26, 74, 0.55);
         animation: pulse-ring-glow 2.4s infinite cubic-bezier(0.45, 0, 0.55, 1);
-        cursor: pointer;
-        transition: transform 0.2s;
-        border: 2px solid rgba(255, 255, 255, 0.2);
-    }
-    .mic-orb:hover {
-        transform: scale(1.08);
-    }
-    .mic-orb svg {
-        width: 58px;
-        height: 58px;
-        fill: none;
-        stroke: #ffffff;
-        stroke-width: 2;
-        stroke-linecap: round;
-        stroke-linejoin: round;
-        filter: drop-shadow(0 2px 4px rgba(0,0,0,0.4));
-    }
-
-    .tap-speak-label {
-        font-size: 0.9rem;
-        color: #e2e8f0;
-        font-weight: 600;
-        margin: 12px 0 14px 0;
-        letter-spacing: 0.03em;
-    }
-
-    .btn-search-pill {
-        background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);
+        font-size: 46px;
         color: #ffffff;
-        border: none;
-        padding: 9px 24px;
-        border-radius: 999px;
+        border: 3px solid rgba(255, 255, 255, 0.25);
+    }
+
+    .mic-status-label {
+        font-size: 1.18rem;
         font-weight: 700;
-        font-size: 0.92rem;
-        box-shadow: 0 4px 16px rgba(245, 158, 11, 0.4);
-        cursor: pointer;
-        display: inline-block;
-        width: 80%;
+        color: #ffffff;
+        letter-spacing: 0.02em;
+        margin-bottom: 4px;
+    }
+
+    .mic-status-sub {
+        font-size: 0.88rem;
+        color: #94a3b8;
+        font-weight: 500;
+        margin-bottom: 14px;
     }
 
     /* ========================================================================= */
@@ -478,67 +414,39 @@ tab_voice, tab_fids, tab_tables, tab_proc, tab_syllabus, tab_sql = st.tabs([
 
 
 # ==============================================================================
-# TAB 1: VOICE SEARCH (PHONE UI) + LYRICS & DATA OUTPUT
+# TAB 1: VOICE SEARCH + LYRICS & DATA OUTPUT
 # ==============================================================================
 with tab_voice:
-    # 2-Column Layout: Left = Mobile Voice Search Phone UI | Right = Lyrics & Data Output
-    col_phone, col_output = st.columns([1.15, 1.85], gap="large")
+    # 2-Column Layout: Left = Simple Microphone Assistant | Right = Lyrics & Data Output
+    col_phone, col_output = st.columns([1.1, 1.9], gap="large")
 
     with col_phone:
-        # Render the mobile phone mockup matching the user's uploaded image
-        st.markdown("""
-        <div class="phone-mockup">
-            <div class="phone-top-bar">
-                <span>12:00</span>
-                <span>📶 5G &nbsp; 🔋 100%</span>
-            </div>
-            <div class="voice-search-title">Voice search</div>
-            
-            <!-- Colorful floating particles + Pulsing Mic Orb -->
-            <div class="mic-stage-box">
-                <div class="particle p-pink-1"></div>
-                <div class="particle p-yellow-1"></div>
-                <div class="particle p-cyan-1"></div>
-                <div class="particle p-yellow-2"></div>
-                <div class="particle p-cyan-2"></div>
-                <div class="particle p-yellow-3"></div>
-                <div class="particle p-pink-2"></div>
-                
-                <div class="mic-orb">
-                    <svg viewBox="0 0 24 24">
-                        <path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"></path>
-                        <path d="M19 10v2a7 7 0 0 1-14 0v-2"></path>
-                        <line x1="12" y1="19" x2="12" y2="23"></line>
-                        <line x1="8" y1="23" x2="16" y2="23"></line>
-                    </svg>
-                </div>
-            </div>
+        # Simple, Clean Microphone Voice Assistant Card
+        mic_card_html = textwrap.dedent("""
+<div class="mic-card-simple">
+<div class="mic-icon-circle">🎙️</div>
+<div class="mic-status-label">Voice Search Assistant</div>
+<div class="mic-status-sub">Tap the button below to speak your query</div>
+</div>
+""").strip()
+        st.markdown(mic_card_html, unsafe_allow_html=True)
 
-            <div class="tap-speak-label">Tap to speak or select an option below</div>
-        </div>
-        """, unsafe_allow_html=True)
-
-        # Embedded Voice Input controls directly in the card flow
-        st.markdown("<div style='text-align: center; margin-bottom: 8px;'>", unsafe_allow_html=True)
         spoken_audio = speech_to_text(
             language="en",
-            start_prompt="🎙️ Tap to Speak (Start Recording)",
-            stop_prompt="⏹️ Stop Recording",
+            start_prompt="🎙️ Tap to Speak (Click here)",
+            stop_prompt="⏹️ Listening... Click to Stop",
             just_once=True,
             use_container_width=True,
-            key="mic_audio_input_phone"
+            key="mic_audio_input_simple"
         )
-        st.markdown("</div>", unsafe_allow_html=True)
 
-        # Manual text query fallback
         typed_text = st.text_input(
-            label="Type query (alternative):",
+            label="Or type your query here:",
             placeholder="e.g. Flights from Mumbai, Show baggage status...",
             key="phone_typed_text"
         )
 
-        # Quick Option Pills ("with some options")
-        st.markdown("<div style='font-size: 0.78rem; font-weight: 700; color: #94A3B8; text-transform: uppercase; margin: 10px 0 6px 0;'>💡 Quick Category Options:</div>", unsafe_allow_html=True)
+        st.markdown("<div style='font-size: 0.8rem; font-weight: 700; color: #38bdf8; text-transform: uppercase; margin: 14px 0 6px 0;'>💡 Quick Query Options:</div>", unsafe_allow_html=True)
         opt_c1, opt_c2 = st.columns(2)
         with opt_c1:
             if st.button("🛫 Flights from Mumbai", use_container_width=True, key="opt_1"):
@@ -602,35 +510,34 @@ with tab_voice:
             lyrics_html_content = "".join(lyrics_html_parts)
 
             # ==================================================================
-            # 1. LYRICS-STYLE SPOKEN RESPONSE DISPLAY
+            # 1. LYRICS-STYLE SPOKEN RESPONSE DISPLAY (Zero Indentation HTML)
             # ==================================================================
-            st.markdown(f"""
-            <div class="lyrics-card">
-                <div class="lyrics-top-bar">
-                    <div class="lyrics-tag">
-                        <div class="equalizer-box">
-                            <span class="eq-bar"></span>
-                            <span class="eq-bar"></span>
-                            <span class="eq-bar"></span>
-                            <span class="eq-bar"></span>
-                            <span class="eq-bar"></span>
-                        </div>
-                        <span>🎵 LIVE VOICE TRANSCRIPTION • LYRICS MODE</span>
-                    </div>
-                    <span style="font-size: 0.76rem; color: #10B981; font-weight: 700; font-family: monospace;">
-                        ⚡ Executed in {exec_ms} ms
-                    </span>
-                </div>
-                
-                <div style="font-size: 0.8rem; text-transform: uppercase; letter-spacing: 0.05em; color: #F59E0B; font-weight: 700; margin-bottom: 6px;">
-                    🎙️ Recognized Input: "{active_query}"
-                </div>
-
-                <div class="lyrics-body">
-                    {lyrics_html_content}
-                </div>
-            </div>
-            """, unsafe_allow_html=True)
+            lyrics_card_html = textwrap.dedent(f"""
+<div class="lyrics-card">
+<div class="lyrics-top-bar">
+<div class="lyrics-tag">
+<div class="equalizer-box">
+<span class="eq-bar"></span>
+<span class="eq-bar"></span>
+<span class="eq-bar"></span>
+<span class="eq-bar"></span>
+<span class="eq-bar"></span>
+</div>
+<span>🎵 LIVE VOICE TRANSCRIPTION • LYRICS MODE</span>
+</div>
+<span style="font-size: 0.76rem; color: #10B981; font-weight: 700; font-family: monospace;">
+⚡ Executed in {exec_ms} ms
+</span>
+</div>
+<div style="font-size: 0.82rem; text-transform: uppercase; letter-spacing: 0.05em; color: #F59E0B; font-weight: 700; margin-bottom: 8px;">
+🎙️ Recognized Input: "{active_query}"
+</div>
+<div class="lyrics-body">
+{lyrics_html_content}
+</div>
+</div>
+""").strip()
+            st.markdown(lyrics_card_html, unsafe_allow_html=True)
 
             # Browser Text-to-Speech Output (Web Speech API)
             render_voice_output(
