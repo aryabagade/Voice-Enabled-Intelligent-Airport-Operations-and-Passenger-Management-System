@@ -1,7 +1,0 @@
-
-streamlit
-mysql-connector-python
-pandas
-streamlit-mic-recorder
-SpeechRecognition
-pyttsx3
