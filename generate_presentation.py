@@ -14,7 +14,7 @@ from pptx.dml.color import RGBColor
 from pptx.enum.text import PP_ALIGN, MSO_ANCHOR
 from pptx.enum.shapes import MSO_SHAPE
 
-OUTPUT_DIR = r"C:\Users\hp\.gemini\antigravity\scratch\Voice-Enabled-Airport"
+OUTPUT_DIR = os.path.dirname(os.path.abspath(__file__))
 ASSETS_DIR = os.path.join(OUTPUT_DIR, "presentation_assets")
 PPTX_PATH = os.path.join(OUTPUT_DIR, "Airport_Management_System_EndSem_Presentation.pptx")
 
