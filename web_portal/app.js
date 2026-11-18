@@ -120,6 +120,8 @@ function initSpeechRecognition() {
     isRecording = true;
     const btn = document.getElementById('btnMic');
     if (btn) btn.classList.add('recording');
+    const lbl = document.getElementById('micStatusLabel');
+    if (lbl) lbl.innerText = "🎙️ Listening... Speak now";
     const input = document.getElementById('voiceInput');
     if (input) input.placeholder = "Listening... Speak now";
   };
@@ -167,8 +169,10 @@ function stopRecording() {
   isRecording = false;
   const btn = document.getElementById('btnMic');
   if (btn) btn.classList.remove('recording');
+  const lbl = document.getElementById('micStatusLabel');
+  if (lbl) lbl.innerText = "Tap to speak";
   const input = document.getElementById('voiceInput');
-  if (input) input.placeholder = "e.g., 'Flights from Mumbai', 'Show baggage status', 'Passengers on AI101'...";
+  if (input) input.placeholder = "Type query or tap mic above...";
 }
 
 function speakText(text) {
@@ -272,12 +276,28 @@ function handleVoiceQuery(queryStr = null) {
     spokenText = `Here is the current flight schedule with ${AIRPORT_DB.flights.length} active scheduled flights across international and domestic hubs.`;
   }
 
-  // Render Spoken Output Banner
-  const voiceCard = document.getElementById('voiceOutputCard');
-  const voiceTextElem = document.getElementById('voiceSpokenText');
-  if (voiceCard && voiceTextElem) {
-    voiceCard.classList.add('active');
-    voiceTextElem.innerText = spokenText;
+  // Render Spoken Output as Musical Lyrics
+  const queryLabel = document.getElementById('lyricsQueryLabel');
+  if (queryLabel) {
+    queryLabel.innerText = `🎙️ Query: "${query}"`;
+  }
+
+  const lyricsBody = document.getElementById('lyricsBody');
+  if (lyricsBody) {
+    const rawSentences = spokenText.split(/(?<=[.!?])\s+/);
+    let lyricsHtml = "";
+    rawSentences.forEach((sentence, idx) => {
+      const s = sentence.trim();
+      if (!s) return;
+      if (idx === 0) {
+        lyricsHtml += `<div class="lyrics-line-active">"${s}"</div>`;
+      } else if (idx === 1) {
+        lyricsHtml += `<div class="lyrics-line-sub">"${s}"</div>`;
+      } else {
+        lyricsHtml += `<div class="lyrics-line-muted">"${s}"</div>`;
+      }
+    });
+    lyricsBody.innerHTML = lyricsHtml;
   }
 
   // Speak aloud via browser TTS

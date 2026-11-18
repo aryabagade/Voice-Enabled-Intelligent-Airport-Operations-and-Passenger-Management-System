@@ -22,7 +22,7 @@
     </div>
 
     <nav class="nav-links">
-      <button class="nav-btn active" id="nav_view_voice" onclick="showView('view_voice')">🎙️ Voice Assistant</button>
+      <button class="nav-btn active" id="nav_view_voice" onclick="showView('view_voice')">🎙️ Voice & Lyrics</button>
       <button class="nav-btn" id="nav_view_fids" onclick="showView('view_fids')">🛫 Live FIDS Board</button>
       <button class="nav-btn" id="nav_view_syllabus" onclick="showView('view_syllabus')">📚 DBMS Syllabus Lab</button>
       <button class="nav-btn" id="nav_view_tables" onclick="showView('view_tables')">🗄️ Tables Explorer</button>
@@ -69,49 +69,99 @@
 
 
     <!-- ========================================================================= -->
-    <!-- VIEW 1: VOICE ASSISTANT & RADAR CENTER -->
+    <!-- VIEW 1: VOICE ASSISTANT (PHONE UI) + LYRICS & DATA OUTPUT                 -->
     <!-- ========================================================================= -->
     <section id="view_voice" class="view-section active">
-      <div class="voice-hero">
-        <div class="voice-interface">
-          <h2>🎙️ Voice-Enabled <span>Airport Operations</span> Hub</h2>
-          <p>Click the microphone or type below. The system translates speech into 3NF SQL queries and speaks back real-time results.</p>
-          
-          <div class="mic-bar">
-            <button class="btn-mic" id="btnMic" onclick="toggleMic()" title="Click to speak">🎤</button>
-            <input type="text" class="voice-input-text" id="voiceInput" placeholder="Click mic to speak, or type: 'Flights from Mumbai', 'Show baggage status'..." onkeydown="if(event.key==='Enter') handleVoiceQuery()">
-            <button class="btn-ask" onclick="handleVoiceQuery()">Execute ➔</button>
+      <div class="voice-stage-grid">
+        
+        <!-- Left: Mobile Phone Voice Search UI (Matching Uploaded Image) -->
+        <div class="phone-mockup-card">
+          <div class="phone-top-bar">
+            <span>12:00</span>
+            <span>📶 5G &nbsp; 🔋 100%</span>
           </div>
+          <div class="phone-screen-title">Voice search</div>
 
-          <div class="chips-row">
-            <span class="chip" onclick="handleVoiceQuery('Flights from Mumbai')">🛫 Flights from Mumbai</span>
-            <span class="chip" onclick="handleVoiceQuery('Flights to Delhi')">🛬 Flights to Delhi</span>
-            <span class="chip" onclick="handleVoiceQuery('Show baggage status')">🧳 Baggage Tracking</span>
-            <span class="chip" onclick="handleVoiceQuery('Show total revenue')">💰 Route Revenue</span>
-            <span class="chip" onclick="handleVoiceQuery('Show available aircraft')">✈️ Available Aircraft</span>
-            <span class="chip" onclick="handleVoiceQuery('Show audit history')">📜 Audit Trail</span>
-          </div>
+          <!-- Pulsing Mic Orb + Colorful Floating Particles -->
+          <div class="mic-stage-box">
+            <div class="particle p-pink-1"></div>
+            <div class="particle p-yellow-1"></div>
+            <div class="particle p-cyan-1"></div>
+            <div class="particle p-yellow-2"></div>
+            <div class="particle p-cyan-2"></div>
+            <div class="particle p-yellow-3"></div>
+            <div class="particle p-pink-2"></div>
 
-          <!-- Spoken Audio Feedback Card -->
-          <div class="voice-output-card" id="voiceOutputCard">
-            <div class="voice-output-header">
-              <span class="voice-tag">🔊 Spoken Voice Audio Response</span>
-              <button class="btn-tts-replay" onclick="replaySpeech()">🔊 Replay Speech</button>
+            <div class="mic-orb" id="btnMic" onclick="toggleMic()" title="Tap to speak">
+              <svg viewBox="0 0 24 24">
+                <path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"></path>
+                <path d="M19 10v2a7 7 0 0 1-14 0v-2"></path>
+                <line x1="12" y1="19" x2="12" y2="23"></line>
+                <line x1="8" y1="23" x2="16" y2="23"></line>
+              </svg>
             </div>
-            <div class="voice-text" id="voiceSpokenText">Voice answer ready.</div>
+          </div>
+
+          <div class="tap-speak-label" id="micStatusLabel">Tap to speak</div>
+
+          <!-- Search Input Bar & Orange Search Button -->
+          <div style="margin-bottom: 12px;">
+            <input type="text" id="voiceInput" class="sql-editor" style="min-height: 42px; height: 42px; padding: 8px 14px; font-size: 0.88rem; border-radius: 999px; text-align: center;" placeholder="Type query or tap mic above..." onkeydown="if(event.key==='Enter') handleVoiceQuery()">
+          </div>
+          <button class="btn-search-pill" onclick="handleVoiceQuery()">Search</button>
+
+          <!-- Quick Option Chips -->
+          <div class="options-chips-grid">
+            <div class="opt-chip" onclick="handleVoiceQuery('Flights from Mumbai')">🛫 Flights from Mumbai</div>
+            <div class="opt-chip" onclick="handleVoiceQuery('Flights to Delhi')">🛬 Flights to Delhi</div>
+            <div class="opt-chip" onclick="handleVoiceQuery('Show baggage status')">🧳 Baggage Tracking</div>
+            <div class="opt-chip" onclick="handleVoiceQuery('Show total revenue')">💰 Total Revenue</div>
+            <div class="opt-chip" onclick="handleVoiceQuery('Show available aircraft')">✈️ Available Aircraft</div>
+            <div class="opt-chip" onclick="handleVoiceQuery('Show audit history')">📜 Audit Trail</div>
+          </div>
+
+          <!-- Small Radar widget in phone -->
+          <div class="radar-box">
+            <div class="radar-title">AIRSPACE RADAR MONITOR</div>
+            <canvas id="radarCanvas" width="280" height="180"></canvas>
           </div>
         </div>
 
-        <!-- Radar Widget -->
-        <div class="radar-box">
-          <div class="radar-title">AIRSPACE RADAR MONITOR</div>
-          <canvas id="radarCanvas" width="280" height="220"></canvas>
-          <div style="font-size: 0.7rem; color: #94a3b8; margin-top: 6px; font-family: var(--font-mono);">Live Vector Scan: Active Flights In-Route</div>
-        </div>
-      </div>
+        <!-- Right: "Writed Output Like Lyrics and Data" -->
+        <div class="voice-output-stage">
+          
+          <!-- 1. Synchronized Lyrics Card -->
+          <div class="lyrics-card" id="lyricsCard">
+            <div class="lyrics-top-bar">
+              <div class="lyrics-tag">
+                <div class="equalizer-box">
+                  <span class="eq-bar"></span>
+                  <span class="eq-bar"></span>
+                  <span class="eq-bar"></span>
+                  <span class="eq-bar"></span>
+                  <span class="eq-bar"></span>
+                </div>
+                <span>🎵 LIVE VOICE TRANSCRIPTION • LYRICS MODE</span>
+              </div>
+              <button class="btn-tts-replay" onclick="replaySpeech()">🔊 Replay Voice</button>
+            </div>
 
-      <!-- Dynamic Voice Results Table -->
-      <div id="voiceResultsContainer"></div>
+            <div style="font-size: 0.78rem; color: #f59e0b; font-weight: 700; text-transform: uppercase; margin-bottom: 8px;" id="lyricsQueryLabel">
+              🎙️ Query: "Flights from Mumbai"
+            </div>
+
+            <div class="lyrics-body" id="lyricsBody">
+              <div class="lyrics-line-active">"Found 6 flights departing from Mumbai Hub."</div>
+              <div class="lyrics-line-sub">"The earliest is flight AI101 to Delhi with ticket fare starting at ₹5,200."</div>
+              <div class="lyrics-line-muted">"Seating capacity is 190 passengers on Airbus A320."</div>
+            </div>
+          </div>
+
+          <!-- 2. Structured Relational Data Output -->
+          <div id="voiceResultsContainer"></div>
+        </div>
+
+      </div>
     </section>
 
 
@@ -351,7 +401,7 @@
       <div class="panel">
         <div class="panel-header">
           <div class="panel-title">💻 Interactive Relational SQL Terminal</div>
-          <button class="btn-ask" onclick="runCustomSql()">⚡ Run Query</button>
+          <button class="btn-search-pill" style="width: auto; padding: 6px 18px;" onclick="runCustomSql()">⚡ Run Query</button>
         </div>
         <textarea class="sql-editor" id="customSqlText">SELECT f.flight_no, a1.city AS origin, a2.city AS destination, f.fare, ac.model
 FROM flight f
